@@ -3,6 +3,8 @@ let timeLeft = 300;
 let items = [];
 let sortingAreaItems = [];
 let gameActive = true;
+let isPaused = false;
+let timerInterval = null;
 
 const messyPile = document.getElementById('messy-pile');
 const sortingArea = document.getElementById('sorting-area');
@@ -10,7 +12,14 @@ const gameContainer = document.getElementById('game-container');
 const scoreDisplay = document.getElementById('score');
 const timerDisplay = document.getElementById('timer');
 const gameOverScreen = document.getElementById('game-over');
+const loadingScreen = document.getElementById('loading-screen');
+const startButton = document.getElementById('start-button');
 const finalStats = document.getElementById('final-stats');
+const musicSelector = document.getElementById('music-selector');
+const pauseButton = document.getElementById('pause-button');
+const resumeButton = document.getElementById('resume-button');
+const newGameButton = document.getElementById('new-game-button');
+const pauseScreen = document.getElementById('pause-screen');
 
 // Sound Effects
 const sounds = {
@@ -20,19 +29,226 @@ const sounds = {
     error: new Audio('sounds/error.mp3')
 };
 
+let backgroundMusic = null;
+
+// Persistence Logic
+function saveGameState() {
+    if (!gameActive) return;
+    const itemsData = Array.from(document.querySelectorAll('.item')).map(el => ({
+        id: el.id,
+        typeId: el.dataset.typeId,
+        pairId: el.dataset.pairId,
+        left: el.style.left,
+        top: el.style.top,
+        transform: el.style.transform,
+        zIndex: el.style.zIndex,
+        inSortingArea: sortingAreaItems.includes(el)
+    }));
+
+    const gameState = {
+        score,
+        timeLeft,
+        items: itemsData,
+        music: musicSelector.value
+    };
+    localStorage.setItem('royal_sorter_save', JSON.stringify(gameState));
+}
+
+function loadGameState() {
+    const saved = localStorage.getItem('royal_sorter_save');
+    if (!saved) return false;
+
+    try {
+        const gameState = JSON.parse(saved);
+        score = gameState.score;
+        timeLeft = gameState.timeLeft;
+        scoreDisplay.innerText = score;
+        timerDisplay.innerText = timeLeft;
+        
+        if (gameState.music) {
+            musicSelector.value = gameState.music;
+            playTrack(gameState.music, true);
+        }
+
+        // Clear existing items
+        document.querySelectorAll('.item').forEach(el => el.remove());
+        items = [];
+        sortingAreaItems = [];
+
+        gameState.items.forEach(itemData => {
+            const type = ITEM_TYPES.find(t => t.id == itemData.typeId);
+            if (type) {
+                const itemEl = createItemElement(type, itemData.pairId, itemData.id);
+                itemEl.style.left = itemData.left;
+                itemEl.style.top = itemData.top;
+                itemEl.style.transform = itemData.transform;
+                itemEl.style.zIndex = itemData.zIndex;
+                
+                gameContainer.appendChild(itemEl);
+                items.push(itemEl);
+                
+                if (itemData.inSortingArea) {
+                    sortingAreaItems.push(itemEl);
+                    itemEl.classList.add('in-sorting-area');
+                }
+            }
+        });
+
+        return true;
+    } catch (e) {
+        console.error("Failed to load game state:", e);
+        return false;
+    }
+}
+
+function clearGameState() {
+    localStorage.removeItem('royal_sorter_save');
+}
+
 function playSound(name) {
     if (sounds[name]) {
-        sounds[name].currentTime = 0;
-        sounds[name].play().catch(e => console.log('Audio play blocked or failed:', e));
+        const sound = sounds[name].cloneNode();
+        sound.play().catch(e => console.log('Audio play blocked or failed:', e));
     }
 }
 
 // Item Generator
 function getIconForItem(type) {
-    return `<iconify-icon icon="${type.icon}" style="color: ${type.color}"></iconify-icon>`;
+    return `<iconify-icon icon="${type.icon}" style="color: ${type.color}" aria-label="${type.name}"></iconify-icon>`;
 }
 
+function playTrack(trackUrl, isInitialLoad = false) {
+    if (!trackUrl) return;
+
+    if (backgroundMusic) {
+        backgroundMusic.pause();
+    }
+    backgroundMusic = new Audio(trackUrl);
+    backgroundMusic.loop = true;
+
+    if (isInitialLoad) {
+        backgroundMusic.addEventListener('canplaythrough', () => {
+            const loader = document.querySelector('.loader');
+            const loadingText = loadingScreen.querySelector('p');
+            if (loader) loader.classList.add('hidden');
+            if (loadingText) loadingText.innerText = 'Royal Music Ready!';
+            if (startButton) {
+                startButton.classList.remove('hidden');
+                startButton.onclick = () => {
+                    loadingScreen.classList.add('hidden');
+                    if (!isPaused) {
+                        backgroundMusic.play().catch(err => console.log('Music play blocked:', err));
+                    }
+                    startTimer();
+                };
+            }
+        }, { once: true });
+    }
+
+    if (!isPaused) {
+        backgroundMusic.play().catch(err => {
+            console.log('Music play blocked:', err);
+            // If blocked, try to play on next interaction
+            const startOnInteraction = () => {
+                if (backgroundMusic && !isPaused) {
+                    backgroundMusic.play().catch(e => console.log('Still blocked:', e));
+                }
+                document.removeEventListener('click', startOnInteraction);
+                document.removeEventListener('keydown', startOnInteraction);
+                document.removeEventListener('touchstart', startOnInteraction);
+            };
+            document.addEventListener('click', startOnInteraction);
+            document.addEventListener('keydown', startOnInteraction);
+            document.addEventListener('touchstart', startOnInteraction);
+        });
+    }
+}
+
+let draggedItem = null;
+let startX, startY;
+let initialLeft, initialTop;
+let initialRotation = 0;
+
+function handleGlobalMove(e) {
+    if (!draggedItem) return;
+    
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    
+    draggedItem.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${initialRotation}deg)`;
+    
+    if (e.type.startsWith('touch') && e.cancelable) {
+        e.preventDefault();
+    }
+}
+
+function handleGlobalEnd(e) {
+    if (!draggedItem) return;
+    
+    const clientX = e.type.startsWith('touch') ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.type.startsWith('touch') ? e.changedTouches[0].clientY : e.clientY;
+
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+
+    const div = draggedItem;
+    draggedItem = null;
+
+    div.style.left = `${initialLeft + dx}px`;
+    div.style.top = `${initialTop + dy}px`;
+    div.style.transform = `rotate(${initialRotation}deg)`;
+    div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
+
+    checkDrop(div, clientX, clientY);
+    saveGameState();
+}
+
+document.addEventListener('mousemove', handleGlobalMove);
+document.addEventListener('mouseup', handleGlobalEnd);
+document.addEventListener('touchmove', handleGlobalMove, { passive: false });
+document.addEventListener('touchend', handleGlobalEnd);
+
 function initGame() {
+    // Music Selection Logic
+    if (musicSelector) {
+        musicSelector.addEventListener('change', (e) => {
+            playTrack(e.target.value);
+            saveGameState();
+        });
+    }
+
+    if (pauseButton) {
+        pauseButton.onclick = togglePause;
+    }
+
+    if (resumeButton) {
+        resumeButton.onclick = togglePause;
+    }
+
+    if (newGameButton) {
+        newGameButton.onclick = () => {
+            clearGameState();
+            location.reload();
+        };
+    }
+
+    if (loadGameState()) {
+        return;
+    }
+
+    if (musicSelector) {
+        // Randomly select and play a song on load
+        const options = Array.from(musicSelector.options).filter(opt => !opt.disabled && opt.value);
+        if (options.length > 0) {
+            const randomOption = options[Math.floor(Math.random() * options.length)];
+            musicSelector.value = randomOption.value;
+            playTrack(randomOption.value, true);
+        }
+    }
+
     // Create pairs for each item type
     ITEM_TYPES.forEach(type => {
         items.push(createItemElement(type, 1));
@@ -49,8 +265,8 @@ function initGame() {
         // Random position within the circular messy pile
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4; 
-        const itemWidth = itemEl.offsetWidth || 60;
-        const itemHeight = itemEl.offsetHeight || 60;
+        const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+        const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
         const x = centerX + Math.cos(angle) * (radius * 1.3) - (itemWidth / 2);
         const y = centerY + Math.sin(angle) * radius - (itemHeight / 2);
         const rotation = Math.random() * 360;
@@ -62,102 +278,52 @@ function initGame() {
         
         gameContainer.appendChild(itemEl);
     });
-
-    startTimer();
 }
 
-function createItemElement(type, pairId) {
+function createItemElement(type, pairId, existingId = null) {
     const div = document.createElement('div');
     div.className = 'item';
     div.dataset.typeId = type.id;
     div.dataset.pairId = pairId;
+    div.id = existingId || `item-${type.id}-${pairId}`;
     div.innerHTML = getIconForItem(type);
     div.title = type.name;
 
-    // Dragging logic
-    let isDragging = false;
-    let offsetX, offsetY;
-
     function handleStart(clientX, clientY) {
-        if (!gameActive) return;
-        
-        // Check if this item is currently being ejected/animated
+        if (!gameActive || isPaused) return;
         if (div.classList.contains('ejecting')) return;
 
-        isDragging = true;
-        
+        draggedItem = div;
         playSound('grab');
 
-        // Remove from sorting area if it was there
         const index = sortingAreaItems.indexOf(div);
         if (index > -1) {
             sortingAreaItems.splice(index, 1);
         }
 
-        const rect = div.getBoundingClientRect();
+        startX = clientX;
+        startY = clientY;
+        initialLeft = parseFloat(div.style.left) || 0;
+        initialTop = parseFloat(div.style.top) || 0;
         
-        // Offset relative to the item's top-left corner
-        offsetX = clientX - rect.left;
-        offsetY = clientY - rect.top;
+        const transform = div.style.transform;
+        const rotMatch = transform.match(/rotate\(([-\d.]+)deg\)/);
+        initialRotation = rotMatch ? parseFloat(rotMatch[1]) : 0;
         
         div.style.transition = 'none';
-        
-        // Bring to front
         div.style.zIndex = 1000;
-    }
-
-    function handleMove(clientX, clientY) {
-        if (!isDragging) return;
-        
-        const parentRect = div.offsetParent.getBoundingClientRect();
-        const x = clientX - parentRect.left - offsetX;
-        const y = clientY - parentRect.top - offsetY;
-        
-        div.style.left = `${x}px`;
-        div.style.top = `${y}px`;
-    }
-
-    function handleEnd(clientX, clientY) {
-        if (!isDragging) return;
-        isDragging = false;
-        div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
-
-        checkDrop(div, clientX, clientY);
     }
 
     div.addEventListener('mousedown', (e) => {
         handleStart(e.clientX, e.clientY);
     });
 
-    document.addEventListener('mousemove', (e) => {
-        handleMove(e.clientX, e.clientY);
-    });
-
-    document.addEventListener('mouseup', (e) => {
-        handleEnd(e.clientX, e.clientY);
-    });
-
-    // Touch events
     div.addEventListener('touchstart', (e) => {
         if (div.classList.contains('ejecting')) return;
         const touch = e.touches[0];
         handleStart(touch.clientX, touch.clientY);
-        // Prevent scrolling while dragging
         if (e.cancelable) e.preventDefault();
     }, { passive: false });
-
-    document.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
-        if (e.cancelable) e.preventDefault();
-    }, { passive: false });
-
-    document.addEventListener('touchend', (e) => {
-        if (!isDragging) return;
-        const touch = e.changedTouches[0];
-        handleEnd(touch.clientX, touch.clientY);
-    });
 
     return div;
 }
@@ -193,8 +359,8 @@ function checkDrop(itemEl, x, y) {
             const areaRect = sortingArea.getBoundingClientRect();
             
             // Positions relative to game-container
-            const itemWidth = itemEl.offsetWidth || 60;
-            const itemHeight = itemEl.offsetHeight || 60;
+            const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+            const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
             const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemWidth / 2);
             const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemHeight / 2);
 
@@ -245,8 +411,8 @@ function moveToMessyPile(itemEl) {
 
     const angle = Math.random() * Math.PI * 2;
     const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4;
-    const itemWidth = itemEl.offsetWidth || 60;
-    const itemHeight = itemEl.offsetHeight || 60;
+    const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+    const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
     const targetX = centerX + Math.cos(angle) * (radius * 1.3) - (itemWidth / 2);
     const targetY = centerY + Math.sin(angle) * radius - (itemHeight / 2);
     const rotation = Math.random() * 360;
@@ -271,20 +437,21 @@ function checkMatches() {
 
         if (item1.dataset.typeId === item2.dataset.typeId) {
             // Match!
+            const matchedItems = [...sortingAreaItems];
+            sortingAreaItems = []; // Clear immediately to allow new items
+
             setTimeout(() => {
-                item1.classList.add('matched-item');
-                item2.classList.add('matched-item');
+                matchedItems.forEach(item => item.classList.add('matched-item'));
                 
                 playSound('sparkle');
                 shootConfetti();
                 
                 setTimeout(() => {
-                    item1.remove();
-                    item2.remove();
+                    matchedItems.forEach(item => item.remove());
                     score += 10;
                     scoreDisplay.innerText = score;
-                    sortingAreaItems = [];
-                    
+                    saveGameState();
+                
                     // Check if all sorted
                     if (document.querySelectorAll('.item').length === 0) {
                         endGame();
@@ -304,18 +471,34 @@ function checkMatches() {
 }
 
 function startTimer() {
-    const interval = setInterval(() => {
-        if (!gameActive) {
-            clearInterval(interval);
-            return;
-        }
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (!gameActive || isPaused) return;
+        
         timeLeft--;
         timerDisplay.innerText = timeLeft;
+        if (timeLeft % 5 === 0) saveGameState(); // Save every 5 seconds
         if (timeLeft <= 0) {
-            clearInterval(interval);
+            clearInterval(timerInterval);
             endGame();
         }
     }, 1000);
+}
+
+function togglePause() {
+    if (!gameActive) return;
+    
+    isPaused = !isPaused;
+    
+    if (isPaused) {
+        pauseScreen.classList.remove('hidden');
+        if (backgroundMusic) backgroundMusic.pause();
+        pauseButton.innerHTML = '<iconify-icon icon="mdi:play"></iconify-icon>';
+    } else {
+        pauseScreen.classList.add('hidden');
+        if (backgroundMusic) backgroundMusic.play().catch(err => console.log('Music resume blocked:', err));
+        pauseButton.innerHTML = '<iconify-icon icon="mdi:pause"></iconify-icon>';
+    }
 }
 
 // Handle window resize to keep items within bounds
@@ -348,8 +531,8 @@ window.addEventListener('resize', () => {
                 // Reposition item in sorting area
                 const index = sortingAreaItems.indexOf(itemEl);
                 const areaRect = sortingArea.getBoundingClientRect();
-                const itemWidth = itemEl.offsetWidth || 60;
-                const itemHeight = itemEl.offsetHeight || 60;
+                const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+                const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
                 const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemWidth / 2);
                 const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemHeight / 2);
                 itemEl.style.left = `${itemX}px`;
@@ -361,6 +544,9 @@ window.addEventListener('resize', () => {
 
 function endGame() {
     gameActive = false;
+    isPaused = false;
+    if (timerInterval) clearInterval(timerInterval);
+    clearGameState();
     const remainingItems = document.querySelectorAll('.item').length;
     const penalty = remainingItems;
     const finalScore = score - penalty;
@@ -373,6 +559,11 @@ function endGame() {
     `;
     
     gameOverScreen.classList.remove('hidden');
+    pauseScreen.classList.add('hidden');
+
+    if (backgroundMusic) {
+        backgroundMusic.pause();
+    }
 }
 
 function shootConfetti() {
@@ -400,33 +591,32 @@ function shootConfetti() {
         const startX = Math.random() * containerWidth;
         const startY = containerHeight + 10;
         
-        confetti.style.left = `${startX}px`;
-        confetti.style.top = `${startY}px`;
+        confetti.style.transform = `translate3d(${startX}px, ${startY}px, 0)`;
         
         gameContainer.appendChild(confetti);
         
         // Animate
         const angle = (Math.random() * 60 + 60) * (Math.PI / 180); // 60-120 degrees
-        const velocity = Math.random() * 32 + 32;
+        const velocity = Math.random() * 12 + 10;
         const vx = Math.cos(angle) * velocity * (Math.random() > 0.5 ? 1 : -1);
         const vy = -Math.sin(angle) * velocity;
-        let x = startX;
-        let y = startY;
-        let gravity = 0.4;
+        let curX = startX;
+        let curY = startY;
+        let gravity = 0.2;
         let opacity = 1;
+        let rotation = 0;
         
         const animate = () => {
-            x += vx;
-            y += vy + gravity;
-            gravity += 0.25;
-            opacity -= 0.025;
+            curX += vx;
+            curY += vy + gravity;
+            gravity += 0.1;
+            opacity -= 0.015;
+            rotation += vx;
             
-            confetti.style.left = `${x}px`;
-            confetti.style.top = `${y}px`;
+            confetti.style.transform = `translate3d(${curX}px, ${curY}px, 0) rotate(${rotation}deg)`;
             confetti.style.opacity = opacity;
-            confetti.style.transform = `rotate(${x}deg)`;
             
-            if (opacity > 0) {
+            if (opacity > 0 && curY < containerHeight + 100) {
                 requestAnimationFrame(animate);
             } else {
                 confetti.remove();

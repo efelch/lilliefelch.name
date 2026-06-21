@@ -3,11 +3,11 @@ const ITEM_TYPES = [
     { id: 'royal_crown', name: 'Golden Crown', icon: 'game-icons:crown', color: '#FFD700' },
     { id: 'royal_tiara', name: 'Sparkling Tiara', icon: 'game-icons:tiara', color: '#1E88E5' },
     { id: 'royal_wand', name: 'Magic Wand', icon: 'radix-icons:magic-wand', color: '#D4AF37' },
-    { id: 'royal_slipper', name: 'Glass Slipper', icon: 'game-icons:glass-heart', color: '#64B5F6' },
+    { id: 'royal_slipper', name: 'Crystal Heart', icon: 'game-icons:glass-heart', color: '#64B5F6' },
     { id: 'royal_castle', name: 'Mini Castle', icon: 'game-icons:castle', color: '#E91E63' },
-    { id: 'royal_carriage', name: 'Pumpkin Carriage', icon: 'game-icons:pumpkin-lantern', color: '#FB8C00' },
+    { id: 'royal_carriage', name: 'Jack-o-Lantern', icon: 'game-icons:pumpkin-lantern', color: '#FB8C00' },
     { id: 'royal_mirror', name: 'Hand Mirror', icon: 'mdi:mirror', color: '#1E88E5' },
-    { id: 'royal_gown', name: 'Ball Gown', icon: 'game-icons:clothespin', color: '#9C27B0' },
+    { id: 'royal_gown', name: 'Clothespin', icon: 'game-icons:clothespin', color: '#9C27B0' },
     { id: 'royal_ring', name: 'Ruby Ring', icon: 'game-icons:ring', color: '#D32F2F' },
     { id: 'royal_necklace', name: 'Pearl Necklace', icon: 'game-icons:necklace', color: '#5C6BC0' },
     
@@ -24,23 +24,23 @@ const ITEM_TYPES = [
     { id: 'toy_mask', name: 'Masquerade Mask', icon: 'game-icons:drama-masks', color: '#4527A0' },
 
     // Beauty & Accessories
-    { id: 'beauty_brush', name: 'Silver Hairbrush', icon: 'game-icons:hair-strands', color: '#9E9E9E' },
-    { id: 'beauty_perfume', name: 'Magic Potion', icon: 'game-icons:vial', color: '#E91E63' },
-    { id: 'beauty_perfume_round', name: 'Perfume Bottle', icon: 'game-icons:glass-shot', color: '#673AB7' },
+    { id: 'beauty_wig', name: 'Wig', icon: 'roentgen:wig-on-stand', color: '#9E9E9E' },
+    { id: 'beauty_perfume', name: 'Perfume Bottle', icon: 'solar:perfume-bold-duotone', color: '#E91E63' },
+    { id: 'beauty_lipstick', name: 'Pink Lipstick', icon: 'mdi:lipstick', color: '#C2185B' },
     { id: 'beauty_ribbon', name: 'Silk Ribbon', icon: 'game-icons:ribbon', color: '#D50000' },
     { id: 'beauty_fan', name: 'Lace Fan', icon: 'icon-park-outline:fan', color: '#BF360C' },
     { id: 'beauty_comb', name: 'Ivory Comb', icon: 'game-icons:comb', color: '#BF360C' },
-    { id: 'beauty_locket', name: 'Golden Locket', icon: 'game-icons:pendant-key', color: '#C49000' },
-    { id: 'beauty_brooch', name: 'Flower Brooch', icon: 'fxemoji:gem', color: '#E91E63' },
-    { id: 'beauty_earrings', name: 'Crystal Earrings', icon: 'game-icons:drop-weapon', color: '#0097A7' },
-    { id: 'beauty_bracelet', name: 'Charm Bracelet', icon: 'game-icons:power-ring', color: '#A67C00' },
+    { id: 'beauty_locket', name: 'Pendant Key', icon: 'game-icons:pendant-key', color: '#C49000' },
+    { id: 'beauty_gem', name: 'Gem', icon: 'fxemoji:gem', color: '#E91E63' },
+    { id: 'beauty_earrings', name: 'Crystal Earrings', icon: 'game-icons:earrings', color: '#0097A7' },
+    { id: 'beauty_bracelet', name: 'Magic Ring', icon: 'game-icons:power-ring', color: '#A67C00' },
 
     // Tea Time & Sweets
-    { id: 'tea_cup', name: 'Fancy Tea Cup', icon: 'game-icons:coffee-cup', color: '#8D6E63' },
+    { id: 'tea_cup', name: 'Coffee Cup', icon: 'game-icons:coffee-cup', color: '#8D6E63' },
     { id: 'tea_pot', name: 'Royal Teapot', icon: 'game-icons:teapot', color: '#2E7D32' },
     { id: 'tea_spoon', name: 'Silver Spoon', icon: 'game-icons:spoon', color: '#757575' },
     { id: 'tea_goblet', name: 'Crystal Goblet', icon: 'ep:goblet', color: '#0288D1' },
-    { id: 'tea_plate', name: 'China Plate', icon: 'game-icons:plate-claw', color: '#00897B' },
+    { id: 'tea_plate', name: 'China Plate', icon: 'openmoji:fork-and-knife-with-plate', color: '#00897B' },
     
     // Books & Letters
     { id: 'book_magic', name: 'Spellbook', icon: 'game-icons:magick-trick', color: '#C62828' },
@@ -51,15 +51,15 @@ const ITEM_TYPES = [
 
     // Flowers & Nature
     { id: 'nature_rose', name: 'Enchanted Rose', icon: 'game-icons:rose', color: '#D50000' },
-    { id: 'nature_tulip', name: 'Pink Flower', icon: 'game-icons:flower-pot', color: '#EC407A' },
-    { id: 'nature_lily', name: 'White Lily', icon: 'game-icons:lily-pads', color: '#EF9A9A' },
-    { id: 'nature_flower', name: 'Spring Bloom', icon: 'game-icons:flower-twirl', color: '#FBC02D' },
-    { id: 'nature_leaf', name: 'Silver Leaf', icon: 'game-icons:leaf-skeleton', color: '#607D8B' },
+    { id: 'nature_tulip', name: 'Flower Pot', icon: 'game-icons:flower-pot', color: '#EC407A' },
+    { id: 'nature_lily', name: 'Lily Pads', icon: 'game-icons:lily-pads', color: '#EF9A9A' },
+    { id: 'nature_flower', name: 'Spring Bloom', icon: 'mdi:flower-outline', color: '#FBC02D' },
+    { id: 'nature_leaf', name: 'Leaf Skeleton', icon: 'game-icons:leaf-skeleton', color: '#607D8B' },
 
     // Miscellaneous
     { id: 'misc_key', name: 'Golden Key', icon: 'material-symbols:key-outline-rounded', color: '#FBC02D' },
     { id: 'misc_clock', name: 'Pocket Watch', icon: 'game-icons:pocket-watch', color: '#FFA000' },
     { id: 'misc_harp', name: 'Golden Harp', icon: 'game-icons:harp', color: '#FFB74D' },
-    { id: 'misc_spinning', name: 'Spinning Wheel', icon: 'game-icons:circular-saw', color: '#5D4037' },
-    { id: 'misc_cushion', name: 'Royal Cushion', icon: 'game-icons:square', color: '#B71C1C' }
+    { id: 'misc_purse', name: 'Silk Purse', icon: 'noto:purse', color: '#880E4F' },
+    { id: 'misc_cushion', name: 'Royal Cushion', icon: 'game-icons:pillow', color: '#B71C1C' }
 ];
