@@ -36,6 +36,7 @@ h2, h3 {
     border-radius: 0 0 100% 0;
     background-image: radial-gradient(circle at 100% 50%, #880e4f 10%, transparent 11%);
     background-size: 20px 40px;
+    transform: translateZ(0);
 }
 
 #curtain-right {
@@ -43,6 +44,7 @@ h2, h3 {
     border-radius: 0 0 0 100%;
     background-image: radial-gradient(circle at 0% 50%, #880e4f 10%, transparent 11%);
     background-size: 20px 40px;
+    transform: translateZ(0);
 }
 
 #ui-layer {
@@ -54,6 +56,29 @@ h2, h3 {
     justify-content: space-between;
     z-index: 100;
     pointer-events: none;
+}
+
+#music-selector-container {
+    pointer-events: auto;
+}
+
+#music-selector {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 15px;
+    border-radius: 25px;
+    border: 3px double #f06292;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #880e4f;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    outline: none;
+    cursor: pointer;
+}
+
+#music-selector:hover {
+    background: #fff;
+    border-color: #ec407a;
 }
 
 #score-board, #timer-display {
@@ -169,8 +194,15 @@ h2, h3 {
     #sorting-area-container {
         height: 140px;
     }
+    #sorting-area-container h3 {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+    }
     #sorting-area {
         height: 90px;
+    }
+    #sorting-area::before {
+        font-size: 1.5rem;
     }
     .item {
         width: 50px;
@@ -178,10 +210,39 @@ h2, h3 {
     }
 }
 
+@media (max-width: 600px) {
+    #sorting-area-container {
+        height: 120px;
+        padding: 5px;
+    }
+    #sorting-area-container h3 {
+        font-size: 1.2rem;
+        margin-bottom: 2px;
+    }
+    #sorting-area {
+        height: 70px;
+        border-width: 4px;
+    }
+    #sorting-area::before {
+        font-size: 1.2rem;
+    }
+    .item {
+        width: 40px;
+        height: 40px;
+    }
+    .item iconify-icon {
+        font-size: 32px;
+    }
+}
+
 @media (max-width: 500px) {
     #score-board, #timer-display {
         padding: 5px 15px;
         font-size: 1rem;
+    }
+    #music-selector {
+        padding: 5px 10px;
+        font-size: 0.8rem;
     }
     .modal {
         padding: 20px;
@@ -202,6 +263,7 @@ h2, h3 {
     filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.2));
     pointer-events: auto;
     touch-action: none;
+    will-change: transform, left, top;
 }
 
 .item:active {
@@ -257,6 +319,7 @@ h2, h3 {
     height: 10px;
     pointer-events: none;
     z-index: 1500;
+    will-change: transform, opacity;
 }
 
 .drop-zone {

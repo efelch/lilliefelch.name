@@ -11,6 +11,7 @@ const scoreDisplay = document.getElementById('score');
 const timerDisplay = document.getElementById('timer');
 const gameOverScreen = document.getElementById('game-over');
 const finalStats = document.getElementById('final-stats');
+const musicSelector = document.getElementById('music-selector');
 
 // Sound Effects
 const sounds = {
@@ -20,10 +21,12 @@ const sounds = {
     error: new Audio('sounds/error.mp3')
 };
 
+let backgroundMusic = null;
+
 function playSound(name) {
     if (sounds[name]) {
-        sounds[name].currentTime = 0;
-        sounds[name].play().catch(e => console.log('Audio play blocked or failed:', e));
+        const sound = sounds[name].cloneNode();
+        sound.play().catch(e => console.log('Audio play blocked or failed:', e));
     }
 }
 
@@ -32,7 +35,47 @@ function getIconForItem(type) {
     return `<iconify-icon icon="${type.icon}" style="color: ${type.color}"></iconify-icon>`;
 }
 
+function playTrack(trackUrl) {
+    if (!trackUrl) return;
+
+    if (backgroundMusic) {
+        backgroundMusic.pause();
+    }
+    backgroundMusic = new Audio(trackUrl);
+    backgroundMusic.loop = true;
+    backgroundMusic.play().catch(err => {
+        console.log('Music play blocked:', err);
+        // If blocked, try to play on next interaction
+        const startOnInteraction = () => {
+            if (backgroundMusic) {
+                backgroundMusic.play().catch(e => console.log('Still blocked:', e));
+            }
+            document.removeEventListener('click', startOnInteraction);
+            document.removeEventListener('keydown', startOnInteraction);
+            document.removeEventListener('touchstart', startOnInteraction);
+        };
+        document.addEventListener('click', startOnInteraction);
+        document.addEventListener('keydown', startOnInteraction);
+        document.addEventListener('touchstart', startOnInteraction);
+    });
+}
+
 function initGame() {
+    // Music Selection Logic
+    if (musicSelector) {
+        musicSelector.addEventListener('change', (e) => {
+            playTrack(e.target.value);
+        });
+
+        // Randomly select and play a song on load
+        const options = Array.from(musicSelector.options).filter(opt => !opt.disabled && opt.value);
+        if (options.length > 0) {
+            const randomOption = options[Math.floor(Math.random() * options.length)];
+            musicSelector.value = randomOption.value;
+            playTrack(randomOption.value);
+        }
+    }
+
     // Create pairs for each item type
     ITEM_TYPES.forEach(type => {
         items.push(createItemElement(type, 1));
@@ -49,8 +92,8 @@ function initGame() {
         // Random position within the circular messy pile
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4; 
-        const itemWidth = itemEl.offsetWidth || 60;
-        const itemHeight = itemEl.offsetHeight || 60;
+        const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+        const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
         const x = centerX + Math.cos(angle) * (radius * 1.3) - (itemWidth / 2);
         const y = centerY + Math.sin(angle) * radius - (itemHeight / 2);
         const rotation = Math.random() * 360;
@@ -76,7 +119,9 @@ function createItemElement(type, pairId) {
 
     // Dragging logic
     let isDragging = false;
-    let offsetX, offsetY;
+    let startX, startY;
+    let initialLeft, initialTop;
+    let initialRotation = 0;
 
     function handleStart(clientX, clientY) {
         if (!gameActive) return;
@@ -94,11 +139,16 @@ function createItemElement(type, pairId) {
             sortingAreaItems.splice(index, 1);
         }
 
-        const rect = div.getBoundingClientRect();
+        // Capture initial state
+        startX = clientX;
+        startY = clientY;
+        initialLeft = parseFloat(div.style.left) || 0;
+        initialTop = parseFloat(div.style.top) || 0;
         
-        // Offset relative to the item's top-left corner
-        offsetX = clientX - rect.left;
-        offsetY = clientY - rect.top;
+        // Extract rotation if it exists
+        const transform = div.style.transform;
+        const rotMatch = transform.match(/rotate\(([-\d.]+)deg\)/);
+        initialRotation = rotMatch ? parseFloat(rotMatch[1]) : 0;
         
         div.style.transition = 'none';
         
@@ -109,17 +159,23 @@ function createItemElement(type, pairId) {
     function handleMove(clientX, clientY) {
         if (!isDragging) return;
         
-        const parentRect = div.offsetParent.getBoundingClientRect();
-        const x = clientX - parentRect.left - offsetX;
-        const y = clientY - parentRect.top - offsetY;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
         
-        div.style.left = `${x}px`;
-        div.style.top = `${y}px`;
+        div.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${initialRotation}deg)`;
     }
 
     function handleEnd(clientX, clientY) {
         if (!isDragging) return;
         isDragging = false;
+
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+
+        div.style.left = `${initialLeft + dx}px`;
+        div.style.top = `${initialTop + dy}px`;
+        div.style.transform = `rotate(${initialRotation}deg)`;
+
         div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
 
         checkDrop(div, clientX, clientY);
@@ -193,8 +249,8 @@ function checkDrop(itemEl, x, y) {
             const areaRect = sortingArea.getBoundingClientRect();
             
             // Positions relative to game-container
-            const itemWidth = itemEl.offsetWidth || 60;
-            const itemHeight = itemEl.offsetHeight || 60;
+            const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+            const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
             const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemWidth / 2);
             const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemHeight / 2);
 
@@ -245,8 +301,8 @@ function moveToMessyPile(itemEl) {
 
     const angle = Math.random() * Math.PI * 2;
     const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4;
-    const itemWidth = itemEl.offsetWidth || 60;
-    const itemHeight = itemEl.offsetHeight || 60;
+    const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+    const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
     const targetX = centerX + Math.cos(angle) * (radius * 1.3) - (itemWidth / 2);
     const targetY = centerY + Math.sin(angle) * radius - (itemHeight / 2);
     const rotation = Math.random() * 360;
@@ -271,19 +327,19 @@ function checkMatches() {
 
         if (item1.dataset.typeId === item2.dataset.typeId) {
             // Match!
+            const matchedItems = [...sortingAreaItems];
+            sortingAreaItems = []; // Clear immediately to allow new items
+
             setTimeout(() => {
-                item1.classList.add('matched-item');
-                item2.classList.add('matched-item');
+                matchedItems.forEach(item => item.classList.add('matched-item'));
                 
                 playSound('sparkle');
                 shootConfetti();
                 
                 setTimeout(() => {
-                    item1.remove();
-                    item2.remove();
+                    matchedItems.forEach(item => item.remove());
                     score += 10;
                     scoreDisplay.innerText = score;
-                    sortingAreaItems = [];
                     
                     // Check if all sorted
                     if (document.querySelectorAll('.item').length === 0) {
@@ -348,8 +404,8 @@ window.addEventListener('resize', () => {
                 // Reposition item in sorting area
                 const index = sortingAreaItems.indexOf(itemEl);
                 const areaRect = sortingArea.getBoundingClientRect();
-                const itemWidth = itemEl.offsetWidth || 60;
-                const itemHeight = itemEl.offsetHeight || 60;
+                const itemWidth = itemEl.offsetWidth || (window.innerWidth <= 600 ? 40 : 60);
+                const itemHeight = itemEl.offsetHeight || (window.innerWidth <= 600 ? 40 : 60);
                 const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemWidth / 2);
                 const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemHeight / 2);
                 itemEl.style.left = `${itemX}px`;
@@ -373,6 +429,10 @@ function endGame() {
     `;
     
     gameOverScreen.classList.remove('hidden');
+
+    if (backgroundMusic) {
+        backgroundMusic.pause();
+    }
 }
 
 function shootConfetti() {
@@ -400,33 +460,32 @@ function shootConfetti() {
         const startX = Math.random() * containerWidth;
         const startY = containerHeight + 10;
         
-        confetti.style.left = `${startX}px`;
-        confetti.style.top = `${startY}px`;
+        confetti.style.transform = `translate3d(${startX}px, ${startY}px, 0)`;
         
         gameContainer.appendChild(confetti);
         
         // Animate
         const angle = (Math.random() * 60 + 60) * (Math.PI / 180); // 60-120 degrees
-        const velocity = Math.random() * 32 + 32;
+        const velocity = Math.random() * 12 + 10;
         const vx = Math.cos(angle) * velocity * (Math.random() > 0.5 ? 1 : -1);
         const vy = -Math.sin(angle) * velocity;
-        let x = startX;
-        let y = startY;
-        let gravity = 0.4;
+        let curX = startX;
+        let curY = startY;
+        let gravity = 0.2;
         let opacity = 1;
+        let rotation = 0;
         
         const animate = () => {
-            x += vx;
-            y += vy + gravity;
-            gravity += 0.25;
-            opacity -= 0.025;
+            curX += vx;
+            curY += vy + gravity;
+            gravity += 0.1;
+            opacity -= 0.015;
+            rotation += vx;
             
-            confetti.style.left = `${x}px`;
-            confetti.style.top = `${y}px`;
+            confetti.style.transform = `translate3d(${curX}px, ${curY}px, 0) rotate(${rotation}deg)`;
             confetti.style.opacity = opacity;
-            confetti.style.transform = `rotate(${x}deg)`;
             
-            if (opacity > 0) {
+            if (opacity > 0 && curY < containerHeight + 100) {
                 requestAnimationFrame(animate);
             } else {
                 confetti.remove();
