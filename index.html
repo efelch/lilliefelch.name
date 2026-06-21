@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Princess Room Sorter</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-layer">
+            <div id="score-board">Score: <span id="score">0</span></div>
+            <div id="timer-display">Time: <span id="timer">300</span>s</div>
+        </div>
+
+        <div id="room-background">
+            <div id="messy-pile" class="drop-zone"></div>
+        </div>
+
+        <div id="sorting-area-container">
+            <h3>Sorting Area</h3>
+            <div id="sorting-area" class="drop-zone"></div>
+        </div>
+
+        <div id="game-over" class="hidden">
+            <div class="modal">
+                <h2>Time's Up!</h2>
+                <p id="final-stats"></p>
+                <button onclick="location.reload()">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/items.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
