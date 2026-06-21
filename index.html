@@ -38,6 +38,11 @@
                 </select>
             </div>
             <div id="timer-display">Time: <span id="timer">300</span>s</div>
+            <div id="reference-link-container" style="pointer-events: auto;">
+                <a href="icons.html" title="Icon Credits" style="background: rgba(255, 255, 255, 0.9); width: 40px; height: 40px; border-radius: 50%; border: 3px double #f06292; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;">
+                    <iconify-icon icon="mdi:information-variant" style="font-size: 20px; color: #880e4f;"></iconify-icon>
+                </a>
+            </div>
         </div>
 
         <div id="room-background">
@@ -52,7 +57,10 @@
             <div class="modal">
                 <h2>Time's Up!</h2>
                 <p id="final-stats"></p>
-                <button onclick="location.reload()">Play Again</button>
+                <div class="modal-buttons">
+                    <button onclick="location.reload()">Play Again</button>
+                    <a href="icons.html" style="color: #c2185b; text-decoration: none; margin-top: 10px; font-family: 'Cinzel', serif; font-size: 0.9rem;">View Icon Credits</a>
+                </div>
             </div>
         </div>
 
@@ -63,6 +71,7 @@
                 <div class="modal-buttons">
                     <button id="resume-button">Resume Game</button>
                     <button id="new-game-button">New Game</button>
+                    <a href="icons.html" style="color: #c2185b; text-decoration: none; margin-top: 10px; font-family: 'Cinzel', serif; font-size: 0.9rem;">View Icon Credits</a>
                 </div>
             </div>
         </div>
