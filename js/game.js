@@ -30,6 +30,43 @@ const sounds = {
 };
 
 let backgroundMusic = null;
+let slideshowInterval = null;
+
+function startLoadingSlideshow() {
+    const slideshowIcon = document.getElementById('slideshow-icon');
+    if (!slideshowIcon) return;
+
+    let currentIndex = 0;
+    const itemsToShow = [...ITEM_TYPES];
+    // Shuffle items for the slideshow
+    for (let i = itemsToShow.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [itemsToShow[i], itemsToShow[j]] = [itemsToShow[j], itemsToShow[i]];
+    }
+
+    function updateIcon() {
+        const item = itemsToShow[currentIndex];
+        slideshowIcon.classList.add('fade-out');
+        
+        setTimeout(() => {
+            slideshowIcon.innerHTML = `<iconify-icon icon="${item.icon}" style="color: ${item.color}"></iconify-icon>`;
+            slideshowIcon.classList.remove('fade-out');
+            slideshowIcon.classList.add('fade-in');
+            
+            currentIndex = (currentIndex + 1) % itemsToShow.length;
+        }, 500);
+    }
+
+    updateIcon();
+    slideshowInterval = setInterval(updateIcon, 2500);
+}
+
+function stopLoadingSlideshow() {
+    if (slideshowInterval) {
+        clearInterval(slideshowInterval);
+        slideshowInterval = null;
+    }
+}
 
 // Persistence Logic
 function saveGameState() {
@@ -127,10 +164,14 @@ function playTrack(trackUrl, isInitialLoad = false) {
     backgroundMusic.loop = true;
 
     if (isInitialLoad) {
+        startLoadingSlideshow();
         backgroundMusic.addEventListener('canplaythrough', () => {
             const loader = document.querySelector('.loader');
+            const slideshowContainer = document.querySelector('.slideshow-container');
             const loadingText = loadingScreen.querySelector('p');
             if (loader) loader.classList.add('hidden');
+            if (slideshowContainer) slideshowContainer.classList.add('hidden');
+            stopLoadingSlideshow();
             if (loadingText) loadingText.innerText = 'Royal Music Ready!';
             if (startButton) {
                 startButton.classList.remove('hidden');

@@ -365,6 +365,29 @@ h2, h3 {
     margin: 20px auto;
 }
 
+.slideshow-container {
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
+}
+
+#slideshow-icon {
+    font-size: 80px;
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+}
+
+#slideshow-icon.fade-out {
+    opacity: 0;
+    transform: scale(0.5);
+}
+
+#slideshow-icon.fade-in {
+    opacity: 1;
+    transform: scale(1);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
