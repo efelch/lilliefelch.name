@@ -24,6 +24,11 @@
         <div id="curtain-right" class="curtain"></div>
         <div id="ui-layer">
             <div id="score-board">Score: <span id="score">0</span></div>
+            <div id="pause-container">
+                <button id="pause-button">
+                    <iconify-icon icon="mdi:pause"></iconify-icon>
+                </button>
+            </div>
             <div id="music-selector-container">
                 <select id="music-selector">
                     <option value="" disabled selected>🎵 Select Music</option>
@@ -40,7 +45,6 @@
         </div>
 
         <div id="sorting-area-container">
-            <h3>Sorting Area</h3>
             <div id="sorting-area" class="drop-zone"></div>
         </div>
 
@@ -49,6 +53,17 @@
                 <h2>Time's Up!</h2>
                 <p id="final-stats"></p>
                 <button onclick="location.reload()">Play Again</button>
+            </div>
+        </div>
+
+        <div id="pause-screen" class="hidden">
+            <div class="modal">
+                <h2>Game Paused</h2>
+                <p>Take a royal breather</p>
+                <div class="modal-buttons">
+                    <button id="resume-button">Resume Game</button>
+                    <button id="new-game-button">New Game</button>
+                </div>
             </div>
         </div>
     </div>

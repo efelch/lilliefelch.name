@@ -3,6 +3,8 @@ let timeLeft = 300;
 let items = [];
 let sortingAreaItems = [];
 let gameActive = true;
+let isPaused = false;
+let timerInterval = null;
 
 const messyPile = document.getElementById('messy-pile');
 const sortingArea = document.getElementById('sorting-area');
@@ -14,6 +16,10 @@ const loadingScreen = document.getElementById('loading-screen');
 const startButton = document.getElementById('start-button');
 const finalStats = document.getElementById('final-stats');
 const musicSelector = document.getElementById('music-selector');
+const pauseButton = document.getElementById('pause-button');
+const resumeButton = document.getElementById('resume-button');
+const newGameButton = document.getElementById('new-game-button');
+const pauseScreen = document.getElementById('pause-screen');
 
 // Sound Effects
 const sounds = {
@@ -25,6 +31,80 @@ const sounds = {
 
 let backgroundMusic = null;
 
+// Persistence Logic
+function saveGameState() {
+    if (!gameActive) return;
+    const itemsData = Array.from(document.querySelectorAll('.item')).map(el => ({
+        id: el.id,
+        typeId: el.dataset.typeId,
+        pairId: el.dataset.pairId,
+        left: el.style.left,
+        top: el.style.top,
+        transform: el.style.transform,
+        zIndex: el.style.zIndex,
+        inSortingArea: sortingAreaItems.includes(el)
+    }));
+
+    const gameState = {
+        score,
+        timeLeft,
+        items: itemsData,
+        music: musicSelector.value
+    };
+    localStorage.setItem('royal_sorter_save', JSON.stringify(gameState));
+}
+
+function loadGameState() {
+    const saved = localStorage.getItem('royal_sorter_save');
+    if (!saved) return false;
+
+    try {
+        const gameState = JSON.parse(saved);
+        score = gameState.score;
+        timeLeft = gameState.timeLeft;
+        scoreDisplay.innerText = score;
+        timerDisplay.innerText = timeLeft;
+        
+        if (gameState.music) {
+            musicSelector.value = gameState.music;
+            playTrack(gameState.music, true);
+        }
+
+        // Clear existing items
+        document.querySelectorAll('.item').forEach(el => el.remove());
+        items = [];
+        sortingAreaItems = [];
+
+        gameState.items.forEach(itemData => {
+            const type = ITEM_TYPES.find(t => t.id == itemData.typeId);
+            if (type) {
+                const itemEl = createItemElement(type, itemData.pairId, itemData.id);
+                itemEl.style.left = itemData.left;
+                itemEl.style.top = itemData.top;
+                itemEl.style.transform = itemData.transform;
+                itemEl.style.zIndex = itemData.zIndex;
+                
+                gameContainer.appendChild(itemEl);
+                items.push(itemEl);
+                
+                if (itemData.inSortingArea) {
+                    sortingAreaItems.push(itemEl);
+                    itemEl.classList.add('in-sorting-area');
+                }
+            }
+        });
+
+        return true;
+    } catch (e) {
+        console.error("Failed to load game state:", e);
+        return false;
+    }
+}
+
+function clearGameState() {
+    localStorage.removeItem('royal_sorter_save');
+}
+
 function playSound(name) {
     if (sounds[name]) {
         const sound = sounds[name].cloneNode();
@@ -34,7 +114,7 @@ function playSound(name) {
 
 // Item Generator
 function getIconForItem(type) {
-    return `<iconify-icon icon="${type.icon}" style="color: ${type.color}"></iconify-icon>`;
+    return `<iconify-icon icon="${type.icon}" style="color: ${type.color}" aria-label="${type.name}"></iconify-icon>`;
 }
 
 function playTrack(trackUrl, isInitialLoad = false) {
@@ -56,37 +136,110 @@ function playTrack(trackUrl, isInitialLoad = false) {
                 startButton.classList.remove('hidden');
                 startButton.onclick = () => {
                     loadingScreen.classList.add('hidden');
-                    backgroundMusic.play().catch(err => console.log('Music play blocked:', err));
+                    if (!isPaused) {
+                        backgroundMusic.play().catch(err => console.log('Music play blocked:', err));
+                    }
                     startTimer();
                 };
             }
         }, { once: true });
     }
 
-    backgroundMusic.play().catch(err => {
-        console.log('Music play blocked:', err);
-        // If blocked, try to play on next interaction
-        const startOnInteraction = () => {
-            if (backgroundMusic) {
-                backgroundMusic.play().catch(e => console.log('Still blocked:', e));
-            }
-            document.removeEventListener('click', startOnInteraction);
-            document.removeEventListener('keydown', startOnInteraction);
-            document.removeEventListener('touchstart', startOnInteraction);
-        };
-        document.addEventListener('click', startOnInteraction);
-        document.addEventListener('keydown', startOnInteraction);
-        document.addEventListener('touchstart', startOnInteraction);
-    });
+    if (!isPaused) {
+        backgroundMusic.play().catch(err => {
+            console.log('Music play blocked:', err);
+            // If blocked, try to play on next interaction
+            const startOnInteraction = () => {
+                if (backgroundMusic && !isPaused) {
+                    backgroundMusic.play().catch(e => console.log('Still blocked:', e));
+                }
+                document.removeEventListener('click', startOnInteraction);
+                document.removeEventListener('keydown', startOnInteraction);
+                document.removeEventListener('touchstart', startOnInteraction);
+            };
+            document.addEventListener('click', startOnInteraction);
+            document.addEventListener('keydown', startOnInteraction);
+            document.addEventListener('touchstart', startOnInteraction);
+        });
+    }
 }
+
+let draggedItem = null;
+let startX, startY;
+let initialLeft, initialTop;
+let initialRotation = 0;
+
+function handleGlobalMove(e) {
+    if (!draggedItem) return;
+    
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+    
+    draggedItem.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${initialRotation}deg)`;
+    
+    if (e.type.startsWith('touch') && e.cancelable) {
+        e.preventDefault();
+    }
+}
+
+function handleGlobalEnd(e) {
+    if (!draggedItem) return;
+    
+    const clientX = e.type.startsWith('touch') ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = e.type.startsWith('touch') ? e.changedTouches[0].clientY : e.clientY;
+
+    const dx = clientX - startX;
+    const dy = clientY - startY;
+
+    const div = draggedItem;
+    draggedItem = null;
+
+    div.style.left = `${initialLeft + dx}px`;
+    div.style.top = `${initialTop + dy}px`;
+    div.style.transform = `rotate(${initialRotation}deg)`;
+    div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
+
+    checkDrop(div, clientX, clientY);
+    saveGameState();
+}
+
+document.addEventListener('mousemove', handleGlobalMove);
+document.addEventListener('mouseup', handleGlobalEnd);
+document.addEventListener('touchmove', handleGlobalMove, { passive: false });
+document.addEventListener('touchend', handleGlobalEnd);
 
 function initGame() {
     // Music Selection Logic
     if (musicSelector) {
         musicSelector.addEventListener('change', (e) => {
             playTrack(e.target.value);
+            saveGameState();
         });
+    }
 
+    if (pauseButton) {
+        pauseButton.onclick = togglePause;
+    }
+
+    if (resumeButton) {
+        resumeButton.onclick = togglePause;
+    }
+
+    if (newGameButton) {
+        newGameButton.onclick = () => {
+            clearGameState();
+            location.reload();
+        };
+    }
+
+    if (loadGameState()) {
+        return;
+    }
+
+    if (musicSelector) {
         // Randomly select and play a song on load
         const options = Array.from(musicSelector.options).filter(opt => !opt.disabled && opt.value);
         if (options.length > 0) {
@@ -127,111 +280,50 @@ function initGame() {
     });
 }
 
-function createItemElement(type, pairId) {
+function createItemElement(type, pairId, existingId = null) {
     const div = document.createElement('div');
     div.className = 'item';
     div.dataset.typeId = type.id;
     div.dataset.pairId = pairId;
+    div.id = existingId || `item-${type.id}-${pairId}`;
     div.innerHTML = getIconForItem(type);
     div.title = type.name;
 
-    // Dragging logic
-    let isDragging = false;
-    let startX, startY;
-    let initialLeft, initialTop;
-    let initialRotation = 0;
-
     function handleStart(clientX, clientY) {
-        if (!gameActive) return;
-        
-        // Check if this item is currently being ejected/animated
+        if (!gameActive || isPaused) return;
         if (div.classList.contains('ejecting')) return;
 
-        isDragging = true;
-        
+        draggedItem = div;
         playSound('grab');
 
-        // Remove from sorting area if it was there
         const index = sortingAreaItems.indexOf(div);
         if (index > -1) {
             sortingAreaItems.splice(index, 1);
         }
 
-        // Capture initial state
         startX = clientX;
         startY = clientY;
         initialLeft = parseFloat(div.style.left) || 0;
         initialTop = parseFloat(div.style.top) || 0;
         
-        // Extract rotation if it exists
         const transform = div.style.transform;
         const rotMatch = transform.match(/rotate\(([-\d.]+)deg\)/);
         initialRotation = rotMatch ? parseFloat(rotMatch[1]) : 0;
         
         div.style.transition = 'none';
-        
-        // Bring to front
         div.style.zIndex = 1000;
-    }
-
-    function handleMove(clientX, clientY) {
-        if (!isDragging) return;
-        
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-        
-        div.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${initialRotation}deg)`;
-    }
-
-    function handleEnd(clientX, clientY) {
-        if (!isDragging) return;
-        isDragging = false;
-
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-
-        div.style.left = `${initialLeft + dx}px`;
-        div.style.top = `${initialTop + dy}px`;
-        div.style.transform = `rotate(${initialRotation}deg)`;
-
-        div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
-
-        checkDrop(div, clientX, clientY);
     }
 
     div.addEventListener('mousedown', (e) => {
         handleStart(e.clientX, e.clientY);
     });
 
-    document.addEventListener('mousemove', (e) => {
-        handleMove(e.clientX, e.clientY);
-    });
-
-    document.addEventListener('mouseup', (e) => {
-        handleEnd(e.clientX, e.clientY);
-    });
-
-    // Touch events
     div.addEventListener('touchstart', (e) => {
         if (div.classList.contains('ejecting')) return;
         const touch = e.touches[0];
         handleStart(touch.clientX, touch.clientY);
-        // Prevent scrolling while dragging
         if (e.cancelable) e.preventDefault();
     }, { passive: false });
-
-    document.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
-        if (e.cancelable) e.preventDefault();
-    }, { passive: false });
-
-    document.addEventListener('touchend', (e) => {
-        if (!isDragging) return;
-        const touch = e.changedTouches[0];
-        handleEnd(touch.clientX, touch.clientY);
-    });
 
     return div;
 }
@@ -358,7 +450,8 @@ function checkMatches() {
                     matchedItems.forEach(item => item.remove());
                     score += 10;
                     scoreDisplay.innerText = score;
-                    
+                    saveGameState();
+                
                     // Check if all sorted
                     if (document.querySelectorAll('.item').length === 0) {
                         endGame();
@@ -378,18 +471,34 @@ function checkMatches() {
 }
 
 function startTimer() {
-    const interval = setInterval(() => {
-        if (!gameActive) {
-            clearInterval(interval);
-            return;
-        }
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (!gameActive || isPaused) return;
+        
         timeLeft--;
         timerDisplay.innerText = timeLeft;
+        if (timeLeft % 5 === 0) saveGameState(); // Save every 5 seconds
         if (timeLeft <= 0) {
-            clearInterval(interval);
+            clearInterval(timerInterval);
             endGame();
         }
     }, 1000);
+}
+
+function togglePause() {
+    if (!gameActive) return;
+    
+    isPaused = !isPaused;
+    
+    if (isPaused) {
+        pauseScreen.classList.remove('hidden');
+        if (backgroundMusic) backgroundMusic.pause();
+        pauseButton.innerHTML = '<iconify-icon icon="mdi:play"></iconify-icon>';
+    } else {
+        pauseScreen.classList.add('hidden');
+        if (backgroundMusic) backgroundMusic.play().catch(err => console.log('Music resume blocked:', err));
+        pauseButton.innerHTML = '<iconify-icon icon="mdi:pause"></iconify-icon>';
+    }
 }
 
 // Handle window resize to keep items within bounds
@@ -435,6 +544,9 @@ window.addEventListener('resize', () => {
 
 function endGame() {
     gameActive = false;
+    isPaused = false;
+    if (timerInterval) clearInterval(timerInterval);
+    clearGameState();
     const remainingItems = document.querySelectorAll('.item').length;
     const penalty = remainingItems;
     const finalScore = score - penalty;
@@ -447,6 +559,7 @@ function endGame() {
     `;
     
     gameOverScreen.classList.remove('hidden');
+    pauseScreen.classList.add('hidden');
 
     if (backgroundMusic) {
         backgroundMusic.pause();
