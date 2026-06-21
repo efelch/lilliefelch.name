@@ -12,32 +12,9 @@ const timerDisplay = document.getElementById('timer');
 const gameOverScreen = document.getElementById('game-over');
 const finalStats = document.getElementById('final-stats');
 
-// SVG Generator
-function getSVGForItem(type) {
-    const color = type.color;
-    // Simple shapes based on type id prefix
-    let content = '';
-    if (type.id.startsWith('brush')) {
-        content = `<rect x="25" y="40" width="10" height="15" fill="#8B4513" /><rect x="15" y="10" width="30" height="35" rx="10" fill="${color}" /><line x1="20" y1="15" x2="20" y2="40" stroke="white" stroke-width="1" stroke-dasharray="2,2" />`;
-    } else if (type.id.startsWith('toy')) {
-        content = `<circle cx="30" cy="35" r="18" fill="${color}" /><circle cx="30" cy="20" r="12" fill="${color}" /><circle cx="20" cy="12" r="6" fill="${color}" /><circle cx="40" cy="12" r="6" fill="${color}" /><circle cx="26" cy="18" r="1.5" fill="black" /><circle cx="34" cy="18" r="1.5" fill="black" />`;
-    } else if (type.id.startsWith('perfume')) {
-        content = `<rect x="18" y="25" width="24" height="30" rx="5" fill="${color}" opacity="0.8" /><rect x="25" y="10" width="10" height="15" fill="#DAA520" /><circle cx="30" cy="10" r="4" fill="#DAA520" />`;
-    } else if (type.id.startsWith('jewel')) {
-        content = `<circle cx="30" cy="30" r="18" fill="none" stroke="#DAA520" stroke-width="3" /><path d="M22 22 L38 38 M38 22 L22 38" stroke="${color}" stroke-width="4" stroke-linecap="round" />`;
-    } else if (type.id.startsWith('acc')) {
-        content = `<path d="M10 30 Q30 10 50 30 Q30 50 10 30" fill="${color}" /><circle cx="30" cy="30" r="5" fill="white" />`;
-    } else if (type.id.startsWith('book')) {
-        content = `<rect x="15" y="10" width="30" height="40" fill="${color}" /><rect x="18" y="10" width="2" height="40" fill="rgba(0,0,0,0.2)" />`;
-    } else if (type.id.startsWith('tea')) {
-        content = `<path d="M15 25 Q15 50 30 50 Q45 50 45 25" fill="${color}" /><rect x="15" y="20" width="30" height="5" fill="${color}" />`;
-    } else if (type.id.startsWith('flower')) {
-        content = `<circle cx="30" cy="25" r="10" fill="${color}" /><circle cx="22" cy="20" r="8" fill="${color}" opacity="0.7" /><circle cx="38" cy="20" r="8" fill="${color}" opacity="0.7" /><circle cx="22" cy="30" r="8" fill="${color}" opacity="0.7" /><circle cx="38" cy="30" r="8" fill="${color}" opacity="0.7" /><path d="M30 35 L30 55" stroke="green" stroke-width="3" />`;
-    } else {
-        content = `<rect x="15" y="15" width="30" height="30" rx="8" fill="${color}" /><circle cx="30" cy="30" r="10" fill="rgba(255,255,255,0.3)" />`;
-    }
-
-    return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
+// Item Generator
+function getIconForItem(type) {
+    return `<iconify-icon icon="${type.icon}" style="color: ${type.color}"></iconify-icon>`;
 }
 
 function initGame() {
@@ -56,9 +33,9 @@ function initGame() {
     items.forEach(itemEl => {
         // Random position within the circular messy pile
         const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 200; 
-        const x = centerX + Math.cos(angle) * (radius * 1.3) - 30;
-        const y = centerY + Math.sin(angle) * radius - 30;
+        const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4; 
+        const x = centerX + Math.cos(angle) * (radius * 1.3) - (itemEl.offsetWidth / 2 || 30);
+        const y = centerY + Math.sin(angle) * radius - (itemEl.offsetHeight / 2 || 30);
         const rotation = Math.random() * 360;
         
         itemEl.style.left = `${x}px`;
@@ -77,14 +54,14 @@ function createItemElement(type, pairId) {
     div.className = 'item';
     div.dataset.typeId = type.id;
     div.dataset.pairId = pairId;
-    div.innerHTML = getSVGForItem(type);
+    div.innerHTML = getIconForItem(type);
     div.title = type.name;
 
     // Dragging logic
     let isDragging = false;
     let offsetX, offsetY;
 
-    div.addEventListener('mousedown', (e) => {
+    function handleStart(clientX, clientY) {
         if (!gameActive) return;
         isDragging = true;
         
@@ -95,35 +72,67 @@ function createItemElement(type, pairId) {
         }
 
         const rect = div.getBoundingClientRect();
-        const parentRect = div.offsetParent.getBoundingClientRect();
         
         // Offset relative to the item's top-left corner
-        offsetX = e.clientX - rect.left;
-        offsetY = e.clientY - rect.top;
+        offsetX = clientX - rect.left;
+        offsetY = clientY - rect.top;
         
         div.style.transition = 'none';
         
         // Bring to front
         div.style.zIndex = 1000;
-    });
+    }
 
-    document.addEventListener('mousemove', (e) => {
+    function handleMove(clientX, clientY) {
         if (!isDragging) return;
         
         const parentRect = div.offsetParent.getBoundingClientRect();
-        const x = e.clientX - parentRect.left - offsetX;
-        const y = e.clientY - parentRect.top - offsetY;
+        const x = clientX - parentRect.left - offsetX;
+        const y = clientY - parentRect.top - offsetY;
         
         div.style.left = `${x}px`;
         div.style.top = `${y}px`;
-    });
+    }
 
-    document.addEventListener('mouseup', (e) => {
+    function handleEnd(clientX, clientY) {
         if (!isDragging) return;
         isDragging = false;
         div.style.transition = 'transform 0.2s ease, left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1), top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
 
-        checkDrop(div, e.clientX, e.clientY);
+        checkDrop(div, clientX, clientY);
+    }
+
+    div.addEventListener('mousedown', (e) => {
+        handleStart(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        handleMove(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        handleEnd(e.clientX, e.clientY);
+    });
+
+    // Touch events
+    div.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        handleStart(touch.clientX, touch.clientY);
+        // Prevent scrolling while dragging
+        if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+        if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        const touch = e.changedTouches[0];
+        handleEnd(touch.clientX, touch.clientY);
     });
 
     return div;
@@ -158,8 +167,8 @@ function checkDrop(itemEl, x, y) {
             const areaRect = sortingArea.getBoundingClientRect();
             
             // Positions relative to game-container
-            const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - 30;
-            const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - 30;
+            const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemEl.offsetWidth / 2 || 30);
+            const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemEl.offsetHeight / 2 || 30);
 
             itemEl.style.left = `${itemX}px`;
             itemEl.style.top = `${itemY}px`;
@@ -200,9 +209,9 @@ function moveToMessyPile(itemEl) {
     const centerY = pileRect.top - containerRect.top + pileRect.height / 2;
 
     const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * 200;
-    const targetX = centerX + Math.cos(angle) * (radius * 1.3) - 30;
-    const targetY = centerY + Math.sin(angle) * radius - 30;
+    const radius = Math.random() * (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.4;
+    const targetX = centerX + Math.cos(angle) * (radius * 1.3) - (itemEl.offsetWidth / 2 || 30);
+    const targetY = centerY + Math.sin(angle) * radius - (itemEl.offsetHeight / 2 || 30);
     const rotation = Math.random() * 360;
     
     // To create a "shoot off" effect, we can use a temporary higher speed or different easing
@@ -266,6 +275,45 @@ function startTimer() {
     }, 1000);
 }
 
+// Handle window resize to keep items within bounds
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (!gameActive) return;
+        
+        const containerRect = gameContainer.getBoundingClientRect();
+        const pileRect = messyPile.getBoundingClientRect();
+        const centerX = pileRect.left - containerRect.left + pileRect.width / 2;
+        const centerY = pileRect.top - containerRect.top + pileRect.height / 2;
+        
+        document.querySelectorAll('.item').forEach(itemEl => {
+            // Only reposition items that are NOT in the sorting area
+            if (sortingAreaItems.indexOf(itemEl) === -1) {
+                // Keep them within the new pile bounds
+                const currentLeft = parseFloat(itemEl.style.left);
+                const currentTop = parseFloat(itemEl.style.top);
+                
+                // If item is too far from new center, move it closer
+                const dist = Math.sqrt(Math.pow(currentLeft - centerX, 2) + Math.pow(currentTop - centerY, 2));
+                const maxRadius = (pileRect.width < pileRect.height ? pileRect.width : pileRect.height) * 0.6;
+                
+                if (dist > maxRadius) {
+                    moveToMessyPile(itemEl);
+                }
+            } else {
+                // Reposition item in sorting area
+                const index = sortingAreaItems.indexOf(itemEl);
+                const areaRect = sortingArea.getBoundingClientRect();
+                const itemX = (areaRect.left - containerRect.left) + (areaRect.width / 3) * (index + 1) - (itemEl.offsetWidth / 2 || 30);
+                const itemY = (areaRect.top - containerRect.top) + (areaRect.height / 2) - (itemEl.offsetHeight / 2 || 30);
+                itemEl.style.left = `${itemX}px`;
+                itemEl.style.top = `${itemY}px`;
+            }
+        });
+    }, 200);
+});
+
 function endGame() {
     gameActive = false;
     const remainingItems = document.querySelectorAll('.item').length;
@@ -291,8 +339,10 @@ function shootConfetti() {
         confetti.className = 'confetti';
         
         // Random start position (bottom or sides)
-        const startX = Math.random() * window.innerWidth;
-        const startY = window.innerHeight + 10;
+        const containerWidth = gameContainer.offsetWidth;
+        const containerHeight = gameContainer.offsetHeight;
+        const startX = Math.random() * containerWidth;
+        const startY = containerHeight + 10;
         
         confetti.style.left = `${startX}px`;
         confetti.style.top = `${startY}px`;

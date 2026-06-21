@@ -48,11 +48,14 @@ body, html {
         linear-gradient(90deg, rgba(240, 98, 146, 0.1) 1px, transparent 1px);
     background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
     border-bottom: 5px solid #ec407a;
+    overflow: hidden;
 }
 
 #messy-pile {
-    width: 800px;
-    height: 600px;
+    width: 90%;
+    max-width: 800px;
+    height: 70%;
+    max-height: 600px;
     position: absolute;
     left: 50%;
     top: 50%;
@@ -63,23 +66,25 @@ body, html {
 }
 
 #sorting-area-container {
-    height: 200px;
+    height: 180px;
     background: #fdf2f5;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 10px;
+    box-sizing: border-box;
 }
 
 #sorting-area-container h3 {
-    margin: 0 0 10px 0;
+    margin: 0 0 5px 0;
     color: #c2185b;
+    font-size: 1.1rem;
 }
 
 #sorting-area {
-    width: 90%;
+    width: 95%;
     max-width: 800px;
-    height: 140px;
+    height: 120px;
     background: #fff;
     border: 3px dashed #f06292;
     border-radius: 15px;
@@ -87,6 +92,31 @@ body, html {
     justify-content: center;
     align-items: center;
     gap: 20px;
+    box-sizing: border-box;
+}
+
+@media (max-height: 600px) {
+    #sorting-area-container {
+        height: 140px;
+    }
+    #sorting-area {
+        height: 90px;
+    }
+    .item {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+@media (max-width: 500px) {
+    #score-board, #timer-display {
+        padding: 5px 15px;
+        font-size: 1rem;
+    }
+    .modal {
+        padding: 20px;
+        width: 80%;
+    }
 }
 
 .item {
@@ -109,9 +139,10 @@ body, html {
     z-index: 1000 !important;
 }
 
-.item svg {
+.item iconify-icon {
     width: 100%;
     height: 100%;
+    font-size: 50px; /* Ensure icon is large enough */
 }
 
 @keyframes spinFade {
