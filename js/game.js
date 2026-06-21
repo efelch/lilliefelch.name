@@ -165,28 +165,49 @@ function playTrack(trackUrl, isInitialLoad = false) {
 
     if (isInitialLoad) {
         startLoadingSlideshow();
-        backgroundMusic.addEventListener('canplaythrough', () => {
+
+        let musicReady = false;
+        let gameStarted = false;
+
+        const onMusicReady = () => {
+            musicReady = true;
             const loader = document.querySelector('.loader');
             const slideshowContainer = document.querySelector('.slideshow-container');
             const loadingText = loadingScreen.querySelector('p');
+            
             if (loader) loader.classList.add('hidden');
             if (slideshowContainer) slideshowContainer.classList.add('hidden');
             stopLoadingSlideshow();
             if (loadingText) loadingText.innerText = 'Royal Music Ready!';
-            if (startButton) {
+            
+            showStartButton();
+
+            if (gameStarted && !isPaused) {
+                backgroundMusic.play().catch(err => console.log('Music play delayed:', err));
+            }
+        };
+
+        const showStartButton = () => {
+            if (startButton && startButton.classList.contains('hidden')) {
                 startButton.classList.remove('hidden');
                 startButton.onclick = () => {
+                    gameStarted = true;
                     loadingScreen.classList.add('hidden');
-                    if (!isPaused) {
+                    if (musicReady && !isPaused) {
                         backgroundMusic.play().catch(err => console.log('Music play blocked:', err));
                     }
                     startTimer();
                 };
             }
-        }, { once: true });
+        };
+
+        backgroundMusic.addEventListener('canplaythrough', onMusicReady, { once: true });
+        
+        // Show start button after 3 seconds regardless of music state
+        setTimeout(showStartButton, 3000);
     }
 
-    if (!isPaused) {
+    if (!isPaused && !isInitialLoad) {
         backgroundMusic.play().catch(err => {
             console.log('Music play blocked:', err);
             // If blocked, try to play on next interaction
