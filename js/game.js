@@ -24,7 +24,6 @@ const pauseScreen = document.getElementById('pause-screen');
 // Sound Effects
 const sounds = {
     grab: new Audio('sounds/grab.mp3'),
-    thunk: new Audio('sounds/thunk.mp3'),
     sparkle: new Audio('sounds/sparkle.mp3'),
     error: new Audio('sounds/error.mp3')
 };
@@ -430,7 +429,6 @@ function checkDrop(itemEl, x, y) {
             itemEl.style.top = `${itemY}px`;
             itemEl.style.transform = 'none';
             
-            playSound('thunk');
 
             checkMatches();
         } else {
