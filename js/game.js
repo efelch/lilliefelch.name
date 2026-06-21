@@ -10,6 +10,8 @@ const gameContainer = document.getElementById('game-container');
 const scoreDisplay = document.getElementById('score');
 const timerDisplay = document.getElementById('timer');
 const gameOverScreen = document.getElementById('game-over');
+const loadingScreen = document.getElementById('loading-screen');
+const startButton = document.getElementById('start-button');
 const finalStats = document.getElementById('final-stats');
 const musicSelector = document.getElementById('music-selector');
 
@@ -35,7 +37,7 @@ function getIconForItem(type) {
     return `<iconify-icon icon="${type.icon}" style="color: ${type.color}"></iconify-icon>`;
 }
 
-function playTrack(trackUrl) {
+function playTrack(trackUrl, isInitialLoad = false) {
     if (!trackUrl) return;
 
     if (backgroundMusic) {
@@ -43,6 +45,24 @@ function playTrack(trackUrl) {
     }
     backgroundMusic = new Audio(trackUrl);
     backgroundMusic.loop = true;
+
+    if (isInitialLoad) {
+        backgroundMusic.addEventListener('canplaythrough', () => {
+            const loader = document.querySelector('.loader');
+            const loadingText = loadingScreen.querySelector('p');
+            if (loader) loader.classList.add('hidden');
+            if (loadingText) loadingText.innerText = 'Royal Music Ready!';
+            if (startButton) {
+                startButton.classList.remove('hidden');
+                startButton.onclick = () => {
+                    loadingScreen.classList.add('hidden');
+                    backgroundMusic.play().catch(err => console.log('Music play blocked:', err));
+                    startTimer();
+                };
+            }
+        }, { once: true });
+    }
+
     backgroundMusic.play().catch(err => {
         console.log('Music play blocked:', err);
         // If blocked, try to play on next interaction
@@ -72,7 +92,7 @@ function initGame() {
         if (options.length > 0) {
             const randomOption = options[Math.floor(Math.random() * options.length)];
             musicSelector.value = randomOption.value;
-            playTrack(randomOption.value);
+            playTrack(randomOption.value, true);
         }
     }
 
@@ -105,8 +125,6 @@ function initGame() {
         
         gameContainer.appendChild(itemEl);
     });
-
-    startTimer();
 }
 
 function createItemElement(type, pairId) {
