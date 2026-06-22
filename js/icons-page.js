@@ -3,9 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (!iconsGrid) return;
 
-    ITEM_TYPES.forEach(item => {
+    ITEM_TYPES.forEach((item, index) => {
         const iconCard = document.createElement('div');
         iconCard.className = 'icon-card';
+        iconCard.style.opacity = '0';
+        iconCard.style.transform = 'translateY(20px)';
+        iconCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
         
         // Iconify icons in ITEM_TYPES are in format 'game-icons:crown'
         // We can link to Iconify's search or directly to the icon if we know the pattern.
@@ -27,5 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         iconsGrid.appendChild(iconCard);
+        
+        // Staggered fade-in
+        setTimeout(() => {
+            iconCard.style.opacity = '1';
+            iconCard.style.transform = 'translateY(0)';
+        }, index * 50);
     });
 });

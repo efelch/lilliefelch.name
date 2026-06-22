@@ -21,15 +21,34 @@ const resumeButton = document.getElementById('resume-button');
 const newGameButton = document.getElementById('new-game-button');
 const pauseScreen = document.getElementById('pause-screen');
 
-// Sound Effects
-const sounds = {
-    grab: new Audio('sounds/grab.mp3'),
-    sparkle: new Audio('sounds/sparkle.mp3'),
-    error: new Audio('sounds/error.mp3')
+// Asset Manager
+const assets = {
+    sounds: {
+        grab: 'sounds/grab.mp3',
+        sparkle: 'sounds/sparkle.mp3',
+        error: 'sounds/error.mp3'
+    },
+    audioInstances: {}
 };
+
+function preloadAssets() {
+    for (const [name, path] of Object.entries(assets.sounds)) {
+        const audio = new Audio(path);
+        audio.preload = 'auto';
+        assets.audioInstances[name] = audio;
+    }
+}
+preloadAssets();
 
 let backgroundMusic = null;
 let slideshowInterval = null;
+
+function playSound(name) {
+    if (assets.audioInstances[name]) {
+        const sound = assets.audioInstances[name].cloneNode();
+        sound.play().catch(e => console.log('Audio play blocked or failed:', e));
+    }
+}
 
 function startLoadingSlideshow() {
     const slideshowIcon = document.getElementById('slideshow-icon');
@@ -141,12 +160,6 @@ function clearGameState() {
     localStorage.removeItem('royal_sorter_save');
 }
 
-function playSound(name) {
-    if (sounds[name]) {
-        const sound = sounds[name].cloneNode();
-        sound.play().catch(e => console.log('Audio play blocked or failed:', e));
-    }
-}
 
 // Item Generator
 function getIconForItem(type) {
@@ -233,24 +246,20 @@ let initialRotation = 0;
 function handleGlobalMove(e) {
     if (!draggedItem) return;
     
-    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-    const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
     
     const dx = clientX - startX;
     const dy = clientY - startY;
     
     draggedItem.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${initialRotation}deg)`;
-    
-    if (e.type.startsWith('touch') && e.cancelable) {
-        e.preventDefault();
-    }
 }
 
 function handleGlobalEnd(e) {
     if (!draggedItem) return;
     
-    const clientX = e.type.startsWith('touch') ? e.changedTouches[0].clientX : e.clientX;
-    const clientY = e.type.startsWith('touch') ? e.changedTouches[0].clientY : e.clientY;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
 
     const dx = clientX - startX;
     const dy = clientY - startY;
@@ -267,10 +276,9 @@ function handleGlobalEnd(e) {
     saveGameState();
 }
 
-document.addEventListener('mousemove', handleGlobalMove);
-document.addEventListener('mouseup', handleGlobalEnd);
-document.addEventListener('touchmove', handleGlobalMove, { passive: false });
-document.addEventListener('touchend', handleGlobalEnd);
+document.addEventListener('pointermove', handleGlobalMove);
+document.addEventListener('pointerup', handleGlobalEnd);
+document.addEventListener('pointercancel', handleGlobalEnd);
 
 function initGame() {
     // Music Selection Logic
@@ -373,18 +381,14 @@ function createItemElement(type, pairId, existingId = null) {
         
         div.style.transition = 'none';
         div.style.zIndex = 1000;
+        div.setPointerCapture(lastPointerId);
     }
 
-    div.addEventListener('mousedown', (e) => {
+    let lastPointerId = null;
+    div.addEventListener('pointerdown', (e) => {
+        lastPointerId = e.pointerId;
         handleStart(e.clientX, e.clientY);
     });
-
-    div.addEventListener('touchstart', (e) => {
-        if (div.classList.contains('ejecting')) return;
-        const touch = e.touches[0];
-        handleStart(touch.clientX, touch.clientY);
-        if (e.cancelable) e.preventDefault();
-    }, { passive: false });
 
     return div;
 }

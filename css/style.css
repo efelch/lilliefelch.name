@@ -208,6 +208,7 @@ h2, h3 {
     opacity: 0.8;
     letter-spacing: 1px;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    z-index: 1;
 }
 
 @media (max-height: 600px) {
@@ -234,6 +235,7 @@ h2, h3 {
     #sorting-area {
         height: 70px;
         border-width: 4px;
+        gap: 10px;
     }
     #sorting-area::before {
         font-size: 1.2rem;
@@ -276,6 +278,7 @@ h2, h3 {
     pointer-events: auto;
     touch-action: none;
     will-change: transform, left, top;
+    z-index: 10;
 }
 
 .item:active {
